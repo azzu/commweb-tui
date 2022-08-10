@@ -1,0 +1,18 @@
+[package]
+name = "commweb-tui"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+reqwest = { version="0.11.11", features=["blocking"] }
+select = "0.6.0-alpha.1"
+tui = "0.18.0"
+crossterm = "0.24.0"
+clap = "3.2.16"
+serde = { version="1.0.142", features=["derive"] }
+serde_json = "1.0.83"
+tokio = { version= "1.20.1", features=["full"] }
+anyhow = "1.0.59"
+rand = "0.8.5"
