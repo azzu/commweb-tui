@@ -1,26 +1,28 @@
-use std::sync::mpsc;
-use thiserror::Error;
-use std::{io, thread};
-use std::time::{Duration, Instant};
+use crate::MenuItem::Boards;
 use crossterm::event::{self, Event as CEvent, KeyCode};
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 use reqwest::Method;
 use select::document::Document;
 use select::node::Node;
 use select::predicate::{Class, Name, Predicate};
+use std::sync::mpsc;
+use std::time::{Duration, Instant};
+use std::{io, thread};
+use thiserror::Error;
 use tui::backend::CrosstermBackend;
 use tui::layout::{Alignment, Constraint, Direction, Layout};
 use tui::style::{Color, Modifier, Style};
-use tui::Terminal;
 use tui::text::{Span, Spans};
-use tui::widgets::{Block, Borders, BorderType, Cell, List, ListItem, ListState, Paragraph, Row, Table, Tabs};
-use crate::MenuItem::Boards;
+use tui::widgets::{
+    Block, BorderType, Borders, Cell, List, ListItem, ListState, Paragraph, Row, Table, Tabs,
+};
+use tui::Terminal;
 
 mod network;
 
 enum Event<I> {
     Input(I),
-    Tick
+    Tick,
 }
 
 #[derive(Error, Debug)]
@@ -139,7 +141,8 @@ impl BoardRow {
                 .next()
                 .unwrap()
                 .attr("alt")
-                .unwrap().to_string();
+                .unwrap()
+                .to_string();
         }
         item_nickname.trim().to_string()
     }
@@ -188,11 +191,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let chunks = Layout::default()
                 .direction(Direction::Vertical)
                 .margin(2)
-                .constraints([
-                    Constraint::Length(3),
-                    Constraint::Min(2),
-                    Constraint::Length(3),
-                ].as_ref())
+                .constraints(
+                    [
+                        Constraint::Length(3),
+                        Constraint::Min(2),
+                        Constraint::Length(3),
+                    ]
+                    .as_ref(),
+                )
                 .split(size);
 
             let copyright = Paragraph::new("commweb-tui 2022 - all right reserved")
@@ -215,11 +221,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             first,
                             Style::default()
                                 .fg(Color::Yellow)
-                                .add_modifier(Modifier::UNDERLINED)
+                                .add_modifier(Modifier::UNDERLINED),
                         ),
-                        Span::styled(rest, Style::default().fg(Color::White))
+                        Span::styled(rest, Style::default().fg(Color::White)),
                     ])
-                }).collect();
+                })
+                .collect();
 
             let tabs = Tabs::new(menu)
                 .select(active_menu_item.into())
@@ -234,10 +241,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 MenuItem::Boards => {
                     let boards_chunks = Layout::default()
                         .direction(Direction::Horizontal)
-                        .constraints([
-                            Constraint::Percentage(20),
-                            Constraint::Percentage(80),
-                        ].as_ref())
+                        .constraints(
+                            [Constraint::Percentage(20), Constraint::Percentage(80)].as_ref(),
+                        )
                         .split(chunks[1]);
                     let (left, right) = render_boards(&board_list_state);
                     rect.render_stateful_widget(left, boards_chunks[0], &mut board_list_state);
@@ -318,14 +324,14 @@ fn render_home<'a>() -> Paragraph<'a> {
         Spans::from(vec![Span::raw("")]),
         Spans::from(vec![Span::raw("Press 'b' to access boards.")]),
     ])
-        .alignment(Alignment::Center)
-        .block(
-            Block::default()
-                .borders(Borders::ALL)
-                .style(Style::default().fg(Color::White))
-                .title("Home")
-                .border_type(BorderType::Plain),
-        );
+    .alignment(Alignment::Center)
+    .block(
+        Block::default()
+            .borders(Borders::ALL)
+            .style(Style::default().fg(Color::White))
+            .title("Home")
+            .border_type(BorderType::Plain),
+    );
     home
 }
 
