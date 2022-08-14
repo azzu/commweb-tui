@@ -6,13 +6,15 @@ use crossterm::event::{self, Event as CEvent, KeyCode};
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 use reqwest::Method;
 use select::document::Document;
-use select::predicate::{Class, Predicate};
+use select::node::Node;
+use select::predicate::{Class, Name, Predicate};
 use tui::backend::CrosstermBackend;
 use tui::layout::{Alignment, Constraint, Direction, Layout};
 use tui::style::{Color, Modifier, Style};
 use tui::Terminal;
 use tui::text::{Span, Spans};
 use tui::widgets::{Block, Borders, BorderType, Cell, List, ListItem, ListState, Paragraph, Row, Table, Tabs};
+use crate::MenuItem::Boards;
 
 mod network;
 
@@ -49,6 +51,15 @@ struct Board {
     uri: String,
 }
 
+impl Board {
+    fn new(name: &str, uri: &str) -> Self {
+        Self {
+            name: name.to_string(),
+            uri: uri.to_string(),
+        }
+    }
+}
+
 struct BoardRow {
     title: String,
     url: String,
@@ -80,12 +91,8 @@ impl BoardRow {
                 .attr("href")
                 .unwrap();
             // let board = list_item.select(Class("shortname")).next().unwrap().text();
-            let comment_count = list_item.select(Class("rSymph05")).next().unwrap().text();
-            let nickname = list_item
-                .select(Class("list_author").descendant(Class("nickname")))
-                .next()
-                .unwrap()
-                .text();
+            let comment_count = BoardRow::get_comment_count(&list_item);
+            let nickname = BoardRow::get_nickname(&list_item);
             let hit_count = list_item
                 .select(Class("list_hit").descendant(Class("hit")))
                 .next()
@@ -110,6 +117,31 @@ impl BoardRow {
         }
 
         boards
+    }
+
+    fn get_comment_count(list_item: &Node) -> String {
+        let mut item_comment_count = list_item.select(Class("rSymph05"));
+        if item_comment_count.next().is_none() {
+            return "0".to_string();
+        }
+        list_item.select(Class("rSymph05")).next().unwrap().text()
+    }
+
+    fn get_nickname(list_item: &Node) -> String {
+        let mut item_nickname = list_item
+            .select(Class("list_author").descendant(Class("nickname")))
+            .next()
+            .unwrap()
+            .text();
+        if item_nickname.trim().is_empty() {
+            item_nickname = list_item
+                .select(Class("list_author").descendant(Name("img")))
+                .next()
+                .unwrap()
+                .attr("alt")
+                .unwrap().to_string();
+        }
+        item_nickname.trim().to_string()
     }
 }
 
@@ -226,7 +258,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 KeyCode::Char('b') => active_menu_item = MenuItem::Boards,
                 KeyCode::Down => {
                     if let Some(selected) = board_list_state.selected() {
-                        let amount_boards = 1;
+                        let amount_boards = read_boards().unwrap().len();
                         if selected >= amount_boards - 1 {
                             board_list_state.select(Some(0));
                         } else {
@@ -236,7 +268,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
                 KeyCode::Up => {
                     if let Some(selected) = board_list_state.selected() {
-                        let amount_boards = 1;
+                        let amount_boards = read_boards().unwrap().len();
                         if selected > 0 {
                             board_list_state.select(Some(selected - 1));
                         } else {
@@ -350,7 +382,7 @@ fn render_boards<'a>(board_list_state: &ListState) -> (List<'a>, Table<'a>) {
                 Style::default().add_modifier(Modifier::BOLD),
             )),
             Cell::from(Span::styled(
-                "댓글 개수",
+                "댓글",
                 Style::default().add_modifier(Modifier::BOLD),
             )),
             Cell::from(Span::styled(
@@ -358,7 +390,7 @@ fn render_boards<'a>(board_list_state: &ListState) -> (List<'a>, Table<'a>) {
                 Style::default().add_modifier(Modifier::BOLD),
             )),
             Cell::from(Span::styled(
-                "읽은 횟수",
+                "읽음",
                 Style::default().add_modifier(Modifier::BOLD),
             )),
             Cell::from(Span::styled(
@@ -385,13 +417,17 @@ fn render_boards<'a>(board_list_state: &ListState) -> (List<'a>, Table<'a>) {
 }
 
 fn read_boards() -> Result<Vec<Board>, Error> {
-    let mut boards_list = vec![];
-    let board = Board {
-        name: "추천글".to_string(),
-        uri: "recommend".to_string(),
-    };
-    boards_list.push(board);
-    Ok(boards_list)
+    let board_list = vec![
+        Board::new("모두의공원", "board/park"),
+        Board::new("새로운소식", "board/news"),
+        Board::new("유용한사이트", "board/useful"),
+        Board::new("자료실", "board/pds"),
+        Board::new("팁과강좌", "board/lecture"),
+        Board::new("사용기", "board/use"),
+        Board::new("추천글", "recommend"),
+    ];
+
+    Ok(board_list)
 }
 
 fn read_board_rows(board_code: &str) -> Result<Vec<BoardRow>, Error> {
