@@ -1,10 +1,6 @@
-use crate::MenuItem::Boards;
 use crossterm::event::{self, Event as CEvent, KeyCode};
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
 use reqwest::Method;
-use select::document::Document;
-use select::node::Node;
-use select::predicate::{Class, Name, Predicate};
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 use std::{io, thread};
@@ -19,6 +15,7 @@ use tui::widgets::{
 use tui::Terminal;
 
 mod network;
+mod board;
 
 enum Event<I> {
     Input(I),
@@ -45,106 +42,6 @@ impl From<MenuItem> for usize {
             MenuItem::Home => 0,
             MenuItem::Boards => 1,
         }
-    }
-}
-
-struct Board {
-    name: String,
-    uri: String,
-}
-
-impl Board {
-    fn new(name: &str, uri: &str) -> Self {
-        Self {
-            name: name.to_string(),
-            uri: uri.to_string(),
-        }
-    }
-}
-
-struct BoardRow {
-    title: String,
-    url: String,
-    // board: String,
-    comment_count: u32,
-    nickname: String,
-    hit_count: String,
-    timestamp: String,
-}
-
-impl BoardRow {
-    fn get_board_data(doc: String) -> Vec<BoardRow> {
-        let mut boards = vec![];
-
-        let document = Document::from(doc.as_str());
-        let list_items = document.select(Class("symph_row"));
-
-        // let mut board_lists: Vec<BoardData> = vec![];
-        for list_item in list_items {
-            let title = list_item
-                .select(Class("subject_fixed"))
-                .next()
-                .unwrap()
-                .text();
-            let url = list_item
-                .select(Class("list_subject"))
-                .next()
-                .unwrap()
-                .attr("href")
-                .unwrap();
-            // let board = list_item.select(Class("shortname")).next().unwrap().text();
-            let comment_count = BoardRow::get_comment_count(&list_item);
-            let nickname = BoardRow::get_nickname(&list_item);
-            let hit_count = list_item
-                .select(Class("list_hit").descendant(Class("hit")))
-                .next()
-                .unwrap()
-                .text();
-            let timestamp = list_item
-                .select(Class("list_time").descendant(Class("timestamp")))
-                .next()
-                .unwrap()
-                .text();
-            // println!("{:?}", nickname.trim());
-
-            let board = BoardRow {
-                title,
-                url: String::from(url),
-                comment_count: comment_count.parse::<u32>().unwrap_or(0),
-                nickname,
-                hit_count,
-                timestamp,
-            };
-            boards.push(board);
-        }
-
-        boards
-    }
-
-    fn get_comment_count(list_item: &Node) -> String {
-        let mut item_comment_count = list_item.select(Class("rSymph05"));
-        if item_comment_count.next().is_none() {
-            return "0".to_string();
-        }
-        list_item.select(Class("rSymph05")).next().unwrap().text()
-    }
-
-    fn get_nickname(list_item: &Node) -> String {
-        let mut item_nickname = list_item
-            .select(Class("list_author").descendant(Class("nickname")))
-            .next()
-            .unwrap()
-            .text();
-        if item_nickname.trim().is_empty() {
-            item_nickname = list_item
-                .select(Class("list_author").descendant(Name("img")))
-                .next()
-                .unwrap()
-                .attr("alt")
-                .unwrap()
-                .to_string();
-        }
-        item_nickname.trim().to_string()
     }
 }
 
@@ -422,26 +319,26 @@ fn render_boards<'a>(board_list_state: &ListState) -> (List<'a>, Table<'a>) {
     (list, board_row)
 }
 
-fn read_boards() -> Result<Vec<Board>, Error> {
+fn read_boards() -> Result<Vec<board::Board>, Error> {
     let board_list = vec![
-        Board::new("모두의공원", "board/park"),
-        Board::new("새로운소식", "board/news"),
-        Board::new("유용한사이트", "board/useful"),
-        Board::new("자료실", "board/pds"),
-        Board::new("팁과강좌", "board/lecture"),
-        Board::new("사용기", "board/use"),
-        Board::new("추천글", "recommend"),
+        board::Board::new("모두의공원", "board/park"),
+        board::Board::new("새로운소식", "board/news"),
+        board::Board::new("유용한사이트", "board/useful"),
+        board::Board::new("자료실", "board/pds"),
+        board::Board::new("팁과강좌", "board/lecture"),
+        board::Board::new("사용기", "board/use"),
+        board::Board::new("추천글", "recommend"),
     ];
 
     Ok(board_list)
 }
 
-fn read_board_rows(board_code: &str) -> Result<Vec<BoardRow>, Error> {
+fn read_board_rows(board_code: &str) -> Result<Vec<board::BoardRow>, Error> {
     let mut url = "https://www.clien.net/service/".to_owned();
     url.push_str(board_code);
     let resp = network::request_url(Method::GET, url);
     let doc = resp.text().unwrap().replace(&['\n', '\t'], "");
 
-    let board_row = BoardRow::get_board_data(doc);
+    let board_row = board::BoardRow::get_board_data(doc);
     Ok(board_row)
 }
